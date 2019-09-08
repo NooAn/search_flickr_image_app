@@ -30,7 +30,7 @@ open class SingletonHolder<out T, in A>(private val constructor: (A) -> T) {
 
 interface ImageLoader
 
-class PhotoLoader private constructor(context: Context) : ImageLoader {
+class PhotoLoader private constructor(context: Context /* for file cache */) : ImageLoader {
     companion object : SingletonHolder<PhotoLoader, Context>(::PhotoLoader)
 
     private val bitmapSize = 75
@@ -40,14 +40,14 @@ class PhotoLoader private constructor(context: Context) : ImageLoader {
             return bitmap.byteCount / 1024
         }
     }
-    private val executorService: ExecutorService = Executors.newFixedThreadPool(6)
+    private val executorService: ExecutorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
     private val handler = Handler(Looper.getMainLooper())
-    private var defaultImage = R.drawable.signal_wifi_off
+    private var defaultImage = R.drawable.stub_off
 
     fun showImage(url: String, imageView: ImageView): PhotoLoader {
         imageView.setImageBitmap(null)
         imageView.setBackgroundColor(Color.LTGRAY)
-        executorService.submit<Any> {
+        executorService.submit {
             val bitmap = getImage(url)
             handler.post {
                 if (bitmap != null)
@@ -109,5 +109,4 @@ class PhotoLoader private constructor(context: Context) : ImageLoader {
             }
         }
     }
-
 }

@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -39,9 +40,9 @@ class MainFragment : Fragment() {
             }
             is Result.Success -> {
                 photoAdapter.addItems(it.data.photo)
-                refreshing = false
             }
             is Result.Loading -> {
+                refreshing = it.state
             }
         }
     }
@@ -58,7 +59,6 @@ class MainFragment : Fragment() {
         recyclerView.apply {
             adapter = photoAdapter
             addOnScrollListener(object : RecyclerView.OnScrollListener() {
-
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                     super.onScrolled(recyclerView, dx, dy)
                     if (dy > 0) {
@@ -66,9 +66,8 @@ class MainFragment : Fragment() {
                         val layoutManager = recyclerView.layoutManager as GridLayoutManager
                         val lastItem = layoutManager.findLastCompletelyVisibleItemPosition()
                         if ((layoutManager.itemCount <= lastItem + visibleThreshold) && !refreshing) {
-                           viewModel.search(null, true)
+                            viewModel.search(null, true)
                             refreshing = true
-                            println(" NEW SEARCHy")
                         }
                     }
                 }
@@ -82,7 +81,7 @@ class MainFragment : Fragment() {
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
-        viewModel = ViewModelProviders.of(this).get(MainViewModel::class.java)
+        viewModel = ViewModelProvider(this).get(MainViewModel::class.java)
         viewModel.photos.observe(this, photosObserver)
     }
 
