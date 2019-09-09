@@ -30,7 +30,7 @@ open class SingletonHolder<out T, in A>(private val constructor: (A) -> T) {
 
 interface ImageLoader
 
-class PhotoLoader private constructor(context: Context /* for file cache */) : ImageLoader {
+class PhotoLoader private constructor(context: Context /* for file cache and lifecycle observed */) : ImageLoader {
     companion object : SingletonHolder<PhotoLoader, Context>(::PhotoLoader)
 
     private val bitmapSize = 75

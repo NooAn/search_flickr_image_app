@@ -7,12 +7,13 @@ import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
 import com.an.droid.network.PhotoLoader
 import com.an.droid.test.R
+import com.an.droid.test.inflate
 import com.an.droid.test.model.Photo
 import kotlinx.android.extensions.LayoutContainer
 import kotlinx.android.synthetic.main.item_image.view.*
 
 class PhotoAdapter : RecyclerView.Adapter<PhotoViewHolder>() {
-    val photos: MutableList<Photo> = mutableListOf()
+    val photos: ArrayList<Photo> = arrayListOf()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
         PhotoViewHolder(parent.inflate(R.layout.item_image))
@@ -58,7 +59,3 @@ private fun ImageView.loadPhotoFromServer(url: String) {
         .showImage(url, this)
         .default(R.drawable.ic_launcher_background)
 }
-
-private fun ViewGroup.inflate(res: Int): View =
-    LayoutInflater.from(this.context).inflate(res, this, false)
-

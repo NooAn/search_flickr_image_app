@@ -1,52 +1,38 @@
 package com.an.droid.test.view
 
-import android.app.Activity
-import android.content.Context
 import android.os.Bundle
+import android.os.Parcelable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.ViewModelProviders
-import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.an.droid.test.R
+import com.an.droid.test.*
+import com.an.droid.test.model.Photo
 import com.an.droid.test.model.Photos
-import com.an.droid.test.model.Result
 import com.an.droid.test.view.adapter.PhotoAdapter
-import com.an.droid.test.viewmodel.MainViewModel
+import java.util.*
 
-class MainFragment : Fragment() {
+interface MainView {
+    fun showError()
+    fun addItems(photos: Photos)
+    fun showProgress()
+    fun hideProgress()
+}
+
+class MainFragment : Fragment(), MainView {
 
     companion object {
+        const val PHOTOS = "photos"
         fun newInstance() = MainFragment()
     }
 
-    private lateinit var viewModel: MainViewModel
+    private val presenter by lazy { Dependency.inject(this) }
     private lateinit var searchView: SearchView
     private lateinit var recyclerView: RecyclerView
     private lateinit var photoAdapter: PhotoAdapter
-    private var refreshing = false
-
-    private val photosObserver = Observer<Result<Photos>> {
-        when (it) {
-            is Error -> {
-                Toast.makeText(activity, "Sorry, I have some error $it", Toast.LENGTH_SHORT).show()
-            }
-            is Result.Success -> {
-                photoAdapter.addItems(it.data.photo)
-            }
-            is Result.Loading -> {
-                refreshing = it.state
-            }
-        }
-    }
-
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -56,22 +42,17 @@ class MainFragment : Fragment() {
         searchView = view.findViewById(R.id.search)
         recyclerView = view.findViewById(R.id.recycler)
         photoAdapter = PhotoAdapter()
+        if (savedInstanceState != null) {
+            val p = savedInstanceState.getParcelableArrayList<Photo>(PHOTOS)
+            if (p != null) {
+                photoAdapter.photos.addAll(p)
+            }
+        }
         recyclerView.apply {
             adapter = photoAdapter
-            addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                    super.onScrolled(recyclerView, dx, dy)
-                    if (dy > 0) {
-                        val visibleThreshold = 3
-                        val layoutManager = recyclerView.layoutManager as GridLayoutManager
-                        val lastItem = layoutManager.findLastCompletelyVisibleItemPosition()
-                        if ((layoutManager.itemCount <= lastItem + visibleThreshold) && !refreshing) {
-                            viewModel.search(null, true)
-                            refreshing = true
-                        }
-                    }
-                }
-            })
+            loadMore {
+                presenter.search(null, true)
+            }
         }
 
         setupSearchView()
@@ -79,45 +60,51 @@ class MainFragment : Fragment() {
         return view
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
-        viewModel = ViewModelProvider(this).get(MainViewModel::class.java)
-        viewModel.photos.observe(this, photosObserver)
-    }
 
     private fun setupSearchView() {
         searchView.onActionViewExpanded()
-        searchView.apply {
-            setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-                override fun onQueryTextSubmit(value: String): Boolean {
-                    if (query.isNotEmpty()) {
-                        search(value)
-                    }
-                    return true
-                }
-
-                override fun onQueryTextChange(query: String): Boolean {
-                    return true
-                }
-            })
+        searchView.textChange {
+            search(it)
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        /**
+         * Cancel our request to server
+         */
+        presenter.stop()
+    }
+
+    override fun showError() {
+        Toast.makeText(activity, "Sorry, I have some error", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun addItems(photos: Photos) {
+        photoAdapter.addItems(photos.photo)
+    }
+
+    /*
+       I'w add progress bar in future app
+     */
+    override fun showProgress() {
+    }
+
+    override fun hideProgress() {
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putParcelableArrayList(PHOTOS, photoAdapter.photos as ArrayList<out Parcelable>)
+    }
+
+    /*
+       We should check connectivity state before search process
+     */
     private fun search(query: String) {
-        activity?.hideKeyboard() //fixme internet check
+        activity?.hideKeyboard()
         searchView.clearFocus()
-        viewModel.search(query)
+        presenter.search(query)
         photoAdapter.setItems(mutableListOf())
     }
-
-    private fun Activity.hideKeyboard() {
-        hideKeyboard(if (currentFocus == null) View(this) else currentFocus)
-    }
-
-    private fun Context.hideKeyboard(view: View?) {
-        val inputMethodManager =
-            getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
-        inputMethodManager.hideSoftInputFromWindow(view?.windowToken, 0)
-    }
-
 }
